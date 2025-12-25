@@ -11,16 +11,18 @@ jobs:
     steps:
       - name: Call Supabase Edge Function
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}          # https://xxxx.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }} # anon key
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
 
-          # нормализуем URL (убираем trailing slash, если есть)
           URL="${SUPABASE_URL%/}/functions/v1/update-news"
           echo "Calling: $URL"
 
           http_code=$(curl -sS -L -o resp.json -w "%{http_code}" -X POST "$URL" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
             -H "x-cron-secret: $CRON_SECRET" \
             -H "Content-Type: application/json" \
             --data '{"targets":["football","hockey","boxing"]}')
