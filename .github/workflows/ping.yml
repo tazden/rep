@@ -14,8 +14,30 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -sS -L -X POST "$SUPABASE_URL/functions/v1/update-news" \
+          set -euo pipefail
+
+          # нормализуем URL (убираем trailing slash, если есть)
+          URL="${SUPABASE_URL%/}/functions/v1/update-news"
+          echo "Calling: $URL"
+
+          http_code=$(curl -sS -L -o resp.json -w "%{http_code}" -X POST "$URL" \
             -H "x-cron-secret: $CRON_SECRET" \
             -H "Content-Type: application/json" \
-            --data "{}" \
-            -w "\nHTTP_STATUS:%{http_code}\n"
+            --data '{"targets":["football","hockey","boxing"]}')
+
+          echo "HTTP_STATUS:$http_code"
+          echo "---- RESPONSE ----"
+          cat resp.json
+          echo ""
+          echo "------------------"
+
+          if [ "$http_code" -ne 200 ]; then
+            echo "Request failed with HTTP $http_code"
+            exit 1
+          fi
+
+          ok=$(python3 -c "import json; d=json.load(open('resp.json','r',encoding='utf-8')); print(str(d.get('ok', False)).lower())")
+          if [ "$ok" != "true" ]; then
+            echo "Function returned ok=false"
+            exit 1
+          fi
